@@ -1,0 +1,10 @@
+# Battery API Integration Tests
+
+The tests are using `XUnit` and `Testcontainers.PostgreSql`.
+
+To run the tests run the below command inside the test project root
+folder.
+
+```
+dotnet test
+```

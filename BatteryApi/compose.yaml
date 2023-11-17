@@ -1,0 +1,54 @@
+services:
+  web:
+    build:
+      context: .
+    depends_on:
+      - db
+    ports:
+      - 8000:80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    secrets:
+      - db_connection
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: battery_system
+      POSTGRES_USER: batteryadmin
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U batteryadmin -d battery_system"]
+      interval: 10s
+      timeout: 25s
+      retries: 5
+
+  db_bundle:
+    build:
+      context: .
+      dockerfile: ./db_bundle/Dockerfile
+      secrets:
+        - db_connection
+    secrets:
+        - db_connection
+    depends_on:
+      - db
+
+
+secrets:
+  db_password:
+    file: db_password.txt
+  db_connection:
+    file: db_connection.txt
+
+volumes:
+  db_data:

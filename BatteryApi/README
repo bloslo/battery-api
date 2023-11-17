@@ -1,0 +1,127 @@
+# Battery API
+
+This project uses .NET 7 or above.
+
+## Prerequisites
+
+To run this project install `docker` and `docker compose`.
+
+## Development
+
+Install the dotnet sdk and runtime. Some Linux distros (e.g. ArchLinux)
+package the ASP.NET core runtime separately. This also needs to be
+installed.
+
+Install the Entity Framework Core tools to create migrations:
+
+```
+dotnet tool install --global dotnet-ef --version 7.0.14
+```
+
+Database migrations are applied using a separate container.
+Inside the `db_bundle` folder is a `Dockerfile` for building the
+container image.
+
+More about bundles [here](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying?tabs=dotnet-core-cli#bundles).
+
+## Run the project
+
+After setting up `docker` and `docker compose` create `db_password.txt`
+and `db_connection.txt`. The `db_password.txt` will store the password
+for the database and the `db_connection.txt` will have the connection
+string in the form - `Server=<host_name>;Username=<db_user>;Password=<db_pass>;Database=<db_name>`.
+
+After creating the above mentioned files, in the root of the project
+(where the `compose.yaml` is) execute:
+
+```
+docker compose up
+```
+
+This will fetch and build all the necessary Docker images.
+
+To stop all containers:
+
+```
+docker compose down
+```
+
+**Note!** The database data is not deleted since the db container is
+using a persistent volume. To remove the volume, after the containers
+have been removed, run `docker volume rm <volume-name>`.
+
+You can use `curl` to make requests to the API.
+
+To create a battery:
+
+```
+curl --header "Content-Type: application/json" \
+    --request POST --data '{"ChargeState": 75, "Voltage": 225.5}' \
+    http://localhost:8000/batteries
+```
+
+To get the list of all batteries:
+
+```
+curl --request GET http://localhost:8000/batteries
+```
+
+Update a battery:
+
+```
+curl --header "Content-Type: application/json" \
+    --request PUT --data '{"ChargeState": 75, "Voltage": 225.5}' \
+    http://localhost:8000/batteries/<battery-id>
+```
+
+Remove a battery:
+
+```
+curl --request DELETE http://localhost:8000/batteries/<battery-id>
+```
+
+Get all issues for a given battery:
+
+```
+curl --request GET http://localhost:8000/batteries/<battery-id>/issues
+```
+
+Create an issue for a battery:
+
+```
+curl --header "Content-Type: application/json" \
+    --request POST --data '{ "IssueType": "Failure", "Description": "Battery stopped charging.", "Occurred" = "2023-11-14T07:22Z"}' \
+    http://localhost:8000/batteries/<battery-id>/issues
+```
+
+Update an issue for a battery:
+
+```
+curl --header "Content-Type: application/json" \
+    --request PUT --data '{ "IssueType": "Temperature warning", "Description": "Battery is overheating.", "Occurred" = "2023-11-15T13:08Z"}' \
+    http://localhost:8000/batteries/<battery-id>/issues/<issue-id>
+```
+
+Remove an issue for a battery:
+
+```
+curl --request DELETE http://localhost:8000/batteries/<battery-id>/issues/<issue-id>
+```
+
+## Architecture
+
+The API is not making use of authentication and authorization.
+
+The project is making use of the Entity Framework Core tools to
+create and manage migrations. Every time a migration is added the
+db migrations container image must be rebuild.
+
+The db credentials are stored in text files.
+
+In total there are three containers. Two of them are long running
+(the Web API and the db) and one (the db_bundle) runs once after
+executing `docker compose up`.
+
+The API includes a health enpoint (http://localhost:8000/healthz),
+in order for docker to performa healthcheck. The db container also
+has healthcheck.
